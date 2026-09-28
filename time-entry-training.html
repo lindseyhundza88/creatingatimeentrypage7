@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Entry Training – SLS Operations</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Serif+Display&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1B2A4A; --navy-mid: #243659; --blue-accent: #2C5F9E;
+    --blue-light: #4A90D9; --blue-bg: #EBF2FB; --green: #1E7A4A;
+    --green-bg: #E8F5EE; --amber: #B45309; --amber-bg: #FEF3C7;
+    --red: #9B1C1C; --red-bg: #FEE2E2; --text: #1B2236;
+    --text-mid: #4A5568; --text-light: #718096; --border: #D1DCF0;
+    --surface: #F7F9FC; --white: #FFFFFF;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--surface); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--navy); color: white; padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; }
+  .header-title { font-family: 'DM Serif Display', serif; font-size: 1.3rem; }
+  .header-sub { font-size: 0.75rem; color: #A8BEDD; margin-top: 2px; }
+
+  .main { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* Card */
+  .card { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card-header { background: var(--navy-mid); color: white; padding: 20px 28px; display: flex; align-items: flex-start; gap: 16px; }
+  .step-badge { background: var(--blue-light); color: white; font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; margin-top: 2px; }
+  .card-title { font-family: 'DM Serif Display', serif; font-size: 1.35rem; line-height: 1.2; }
+  .card-body { padding: 28px; }
+
+  /* ── STAGE 0: Dashboard ── */
+  .dash-sim { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .dash-topbar { background: #1B2A4A; color: white; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .dash-topbar-title { font-family: 'DM Serif Display', serif; font-size: 1rem; }
+  .add-time-btn { background: #2C6FBA; color: white; border: none; border-radius: 5px; padding: 8px 18px; font-size: 0.82rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.15s, box-shadow 0.15s; box-shadow: 0 2px 6px rgba(44,95,158,0.35); animation: pulse 1.8s infinite; }
+  .add-time-btn:hover { background: #1B5299; animation: none; box-shadow: 0 4px 14px rgba(44,95,158,0.45); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 2px 6px rgba(44,95,158,0.3); } 50% { box-shadow: 0 0 0 7px rgba(74,144,217,0.2), 0 2px 6px rgba(44,95,158,0.3); } }
+  .dash-body { background: #EEF2F8; padding: 24px; min-height: 140px; display: flex; align-items: center; justify-content: center; }
+  .dash-body-inner { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 24px; color: var(--text-light); font-size: 0.82rem; text-align: center; width: 100%; }
+  .dash-hint { font-size: 0.78rem; color: var(--blue-accent); text-align: center; margin-top: 10px; font-style: italic; }
+
+  /* ── STAGE 1: Timer warning ── */
+  .timer-warning-bar { background: var(--red-bg); border: 1px solid #FCA5A5; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.85rem; color: var(--red); line-height: 1.6; }
+  .timer-warning-bar strong { font-weight: 600; }
+  .stop-timer-btn { margin-top: 10px; padding: 6px 14px; background: var(--red); color: white; border: none; border-radius: 4px; font-size: 0.78rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; }
+  .stop-timer-btn:hover { background: #7B1616; }
+  .timer-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* Shared modal titlebar */
+  .modal-titlebar { background: #3B6DB5; color: white; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; font-weight: 500; border-radius: 8px 8px 0 0; }
+  .modal-timer-badge { font-size: 0.73rem; background: rgba(0,0,0,0.25); padding: 2px 9px; border-radius: 4px; display: flex; align-items: center; gap: 6px; }
+  .no-use { background: #FEE2E2; color: #9B1C1C; font-size: 0.63rem; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+
+  /* ── STAGE 2: Interactive form ── */
+  .stage-intro { background: var(--green-bg); border: 1px solid #6EE7A8; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; color: var(--green); line-height: 1.5; }
+  .stage-intro strong { font-weight: 600; }
+
+  .sim-wrap { display: grid; grid-template-columns: 260px 1fr; gap: 24px; }
+  @media (max-width: 700px) { .sim-wrap { grid-template-columns: 1fr; } }
+
+  /* Coach panel */
+  .coach-panel { background: var(--navy); color: white; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; min-height: 420px; }
+  .coach-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #A8BEDD; margin-bottom: 6px; }
+  .coach-tip { font-size: 0.875rem; line-height: 1.6; color: #E2EBF8; flex: 1; }
+  .coach-tip strong { color: white; }
+  .field-progress { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .fp-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #A8BEDD; transition: color 0.2s; }
+  .fp-row.done { color: #6EE7A8; }
+  .fp-row.active { color: white; font-weight: 600; }
+  .fp-icon { font-size: 0.85rem; width: 18px; text-align: center; }
+
+  /* Form */
+  .sim-form { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .sim-body { padding: 16px 18px; font-size: 0.78rem; }
+  .sim-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .sim-field-wrap { margin-bottom: 10px; position: relative; }
+  .sim-field-label { font-size: 0.72rem; color: var(--text-light); margin-bottom: 3px; }
+  .req { color: #E53E3E; font-size: 0.65rem; }
+  .sim-input, .sim-select { width: 100%; padding: 5px 8px; font-size: 0.78rem; font-family: 'Inter', sans-serif; border: 1.5px solid #c8d6e8; border-radius: 4px; background: #F8FAFD; color: var(--text); outline: none; transition: border-color 0.15s, box-shadow 0.15s; height: 28px; }
+  .sim-input:focus, .sim-select:focus { border-color: var(--blue-light); box-shadow: 0 0 0 2px rgba(74,144,217,0.18); background: white; }
+  .sim-input.field-correct { border-color: var(--green); background: var(--green-bg); }
+  .sim-input.field-wrong { border-color: #E53E3E; background: var(--red-bg); }
+  .sim-select.field-correct { border-color: var(--green); background: var(--green-bg); }
+  .sim-dropdown { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: white; border: 1.5px solid var(--blue-light); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 100; max-height: 160px; overflow-y: auto; display: none; }
+  .sim-dropdown.open { display: block; }
+  .sim-dropdown-item { padding: 7px 10px; font-size: 0.78rem; cursor: pointer; color: var(--text); transition: background 0.1s; }
+  .sim-dropdown-item:hover { background: var(--blue-bg); color: var(--blue-accent); }
+  .item-label { font-weight: 500; }
+  .item-sub { font-size: 0.68rem; color: var(--text-light); margin-top: 1px; }
+  .sim-dropdown-empty { padding: 10px; font-size: 0.78rem; color: var(--text-light); text-align: center; }
+  .field-hint { font-size: 0.71rem; margin-top: 3px; min-height: 16px; line-height: 1.3; }
+  .field-hint.ok { color: var(--green); }
+  .field-hint.err { color: #E53E3E; }
+  .field-hint.tip { color: var(--blue-accent); }
+  .get-time-btn { padding: 5px 12px; background: var(--blue-accent); color: white; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .get-time-btn:hover { background: #1B5299; }
+  .get-time-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .sim-check-row input[type=checkbox] { accent-color: var(--blue-accent); width: 14px; height: 14px; }
+  .sim-textarea { width: 100%; font-family: 'Inter', sans-serif; font-size: 0.78rem; padding: 6px 8px; border: 1.5px solid #c8d6e8; border-radius: 4px; resize: vertical; min-height: 48px; background: #F8FAFD; outline: none; transition: border-color 0.15s; }
+  .sim-textarea:focus { border-color: var(--blue-light); background: white; }
+  .sim-readonly { height: 28px; padding: 5px 8px; font-size: 0.78rem; background: #F0F4FA; border: 1.5px solid #e2e8f0; border-radius: 4px; color: var(--text-mid); display: flex; align-items: center; }
+  .sim-readonly.autofill { color: var(--blue-accent); font-style: italic; }
+  .sim-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .sim-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .sim-btn { padding: 7px 16px; border-radius: 5px; font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 600; border: none; cursor: pointer; }
+  .sim-btn.primary { background: #2C6FBA; color: white; }
+  .sim-btn.primary:hover { background: #1B5299; }
+  .sim-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .sim-btn.ghost { background: #e0e0e0; color: #555; }
+
+  /* Success */
+  .sim-success { display: none; text-align: center; padding: 40px 24px; }
+  .sim-success.show { display: block; }
+  .sim-success-icon { font-size: 2.8rem; margin-bottom: 12px; }
+  .sim-success h3 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--navy); margin-bottom: 10px; }
+  .sim-success p { font-size: 0.875rem; color: var(--text-mid); line-height: 1.7; }
+  .sim-retry { margin-top: 18px; padding: 9px 22px; background: var(--navy); color: white; border: none; border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .sim-retry:hover { background: var(--blue-accent); }
+
+  /* Quiz */
+  .quiz-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 28px; }
+  .quiz-section h3 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-bottom: 14px; }
+  .quiz-question { font-size: 0.95rem; font-weight: 500; margin-bottom: 14px; line-height: 1.5; }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-option { background: white; border: 1.5px solid var(--border); border-radius: 6px; padding: 10px 14px; cursor: pointer; font-size: 0.875rem; color: var(--text-mid); transition: border-color 0.15s, background 0.15s; display: flex; align-items: center; gap: 10px; }
+  .quiz-option:hover { border-color: var(--blue-light); background: var(--blue-bg); }
+  .quiz-option.correct { border-color: var(--green); background: var(--green-bg); color: var(--green); pointer-events: none; }
+  .quiz-option.wrong { border-color: #E53E3E; background: var(--red-bg); color: var(--red); pointer-events: none; }
+  .quiz-option.disabled { pointer-events: none; }
+  .quiz-feedback { margin-top: 12px; font-size: 0.85rem; padding: 10px 14px; border-radius: 6px; display: none; line-height: 1.5; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.correct { background: var(--green-bg); color: var(--green); border: 1px solid #6EE7A8; }
+  .quiz-feedback.wrong { background: var(--red-bg); color: var(--red); border: 1px solid #FCA5A5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">Time Entry Training</div>
+    <div class="header-sub">SLS Operations · Billing System</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">New Time Entry</div></div>
+    </div>
+    <div class="card-body">
+
+      <p style="font-size:0.875rem;color:var(--text-mid);margin-bottom:8px;line-height:1.6;">
+        Practice the full time entry process below — start by clicking <strong>Add Time</strong>, then fill out each required field. The coaching panel will guide you through every step.
+      </p>
+      <p style="font-size:0.82rem;color:#E53E3E;margin-bottom:24px;"><span style="font-weight:700;">*</span> Fields marked with an asterisk must be completed before you can save.</p>
+
+      <!-- ══ STAGE 0: Dashboard ══ -->
+      <div id="stage-dashboard">
+        <div class="dash-sim">
+          <div class="dash-topbar">
+            <span class="dash-topbar-title">Billing Dashboard</span>
+            <button class="add-time-btn" onclick="clickAddTime()">+ Add Time</button>
+          </div>
+          <div class="dash-body">
+            <div class="dash-body-inner">Your recent time entries will appear here.</div>
+          </div>
+        </div>
+        <div class="dash-hint">👆 Click the blue Add Time button to begin</div>
+      </div>
+
+      <!-- ══ STAGE 2: Interactive form ══ -->
+      <div id="stage-form" style="display:none;">
+        <div class="sim-wrap">
+          <!-- Coach -->
+          <div class="coach-panel">
+            <div class="coach-label" id="coachLabel">Get started</div>
+            <div class="coach-tip" id="coachTip">Click any field in the form to begin. The guidance here will update as you go.</div>
+            <div class="field-progress">
+              <div class="fp-row" id="fp-client"><span class="fp-icon">○</span> Client</div>
+              <div class="fp-row" id="fp-matter"><span class="fp-icon">○</span> Matter</div>
+
+              <div class="fp-row" id="fp-entrytype"><span class="fp-icon">○</span> Entry Type</div>
+              <div class="fp-row" id="fp-description"><span class="fp-icon">○</span> Private Description</div>
+              <div class="fp-row" id="fp-endtime"><span class="fp-icon">○</span> Click Get Time</div>
+            </div>
+          </div>
+
+          <!-- Form -->
+          <div>
+            <div id="simForm">
+              <div class="dash-sim">
+                <div class="modal-titlebar">
+                  New Time Entry
+                </div>
+                <div class="sim-body">
+                  <div class="sim-two-col">
+                    <div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">For User</div><div class="sim-readonly">Account, Test</div></div>
+                      <div class="sim-field-wrap" id="wrap-client">
+                        <div class="sim-field-label">Client <span class="req">*</span></div>
+                        <input type="text" class="sim-input" id="f-client" placeholder="Search client…" autocomplete="off" onfocus="onFocus('client')" oninput="onClientInput()" onblur="onClientBlur()">
+                        <div class="sim-dropdown" id="dd-client"></div>
+                        <div class="field-hint" id="hint-client"></div>
+                      </div>
+                      <div class="sim-field-wrap" id="wrap-matter">
+                        <div class="sim-field-label">Matter <span class="req">*</span></div>
+                        <input type="text" class="sim-input" id="f-matter" placeholder="Type the case name + 'SLS Ops' e.g. Dexcom SLS Ops" autocomplete="off" onfocus="onFocus('matter')" oninput="onMatterInput()" onblur="onMatterBlur()">
+                        <div class="sim-dropdown" id="dd-matter"></div>
+                        <div class="field-hint" id="hint-matter"></div>
+                      </div>
+
+                    </div>
+                    <div>
+                      <div class="sim-field-wrap" id="wrap-entrytype">
+                        <div class="sim-field-label">Entry Type <span class="req">*</span></div>
+                        <select class="sim-select" id="f-entrytype" onfocus="onFocus('entrytype')" onchange="onEntryTypeChange()">
+                          <option value="">— Select —</option>
+                          <option value="hourly">Hourly Work</option>
+                          <option value="flat">Flat Fee</option>
+                          <option value="contingency">Contingency</option>
+                          <option value="nonbillable">Non-Billable</option>
+                        </select>
+                        <div class="field-hint" id="hint-entrytype"></div>
+                      </div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Overtime</div><div class="sim-check-row"><input type="checkbox" disabled> Overtime</div></div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Billable</div><div class="sim-check-row"><input type="checkbox" checked> Billable</div></div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Date Created</div><div class="sim-readonly" id="f-datecreated"></div></div>
+                    </div>
+                  </div>
+                  <hr class="sim-divider">
+                  <div class="sim-field-wrap">
+                    <div class="sim-field-label">Private Description <span class="req">*</span></div>
+                    <textarea class="sim-textarea" id="f-description" placeholder='e.g. "Reviewed and uploaded 12 medical records for client intake — Matter #12345 John Smith" — include the task and all client matter numbers/display names worked on.' onfocus="onFocus('description')" onblur="onDescriptionBlur()"></textarea>
+                    <div class="field-hint" id="hint-description"></div>
+                  </div>
+
+                  <hr class="sim-divider">
+                  <div class="sim-two-col">
+                    <div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Date of Work</div><div class="sim-readonly" id="f-dateofwork"></div></div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Start Time <span style="color:var(--blue-accent);font-size:0.68rem;">(auto-stamped)</span></div><div class="sim-readonly autofill" id="f-starttime"></div></div>
+                      <div class="sim-field-wrap" id="wrap-endtime">
+                        <div class="sim-field-label">End Time <span class="req">*</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                          <div class="sim-readonly" id="f-endtime" style="flex:1;color:var(--text-light);font-style:italic;">—</div>
+                          <button class="get-time-btn" id="getTimeBtn" onclick="clickGetTime()">Get Time</button>
+                        </div>
+                        <div class="field-hint" id="hint-endtime"></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Labor Time (hrs)</div><div class="sim-readonly" id="f-labortime">—</div></div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Rate $</div><div class="sim-readonly">$0.00</div></div>
+                      <div class="sim-field-wrap"><div class="sim-field-label">Billable (hrs)</div><div class="sim-readonly" id="f-billablehrs">0.00</div></div>
+                    </div>
+                  </div>
+
+                  <div class="sim-footer">
+                    <button class="sim-btn ghost" onclick="resetAll()">Cancel</button>
+                    <button class="sim-btn primary" id="saveBtn" onclick="trySave()" disabled>Save &amp; Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Success -->
+            <div class="sim-success" id="simSuccess">
+              <div class="sim-success-icon">✅</div>
+              <h3>Entry Saved Successfully!</h3>
+              <p>
+                <strong>Client:</strong> SLS Operations<br>
+                <strong>Matter:</strong> <span id="ss-matter"></span><br>
+
+                <strong>Entry Type:</strong> Hourly Work
+              </p>
+              <button class="sim-retry" onclick="resetAll()">Try Again ↺</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quiz -->
+      <div class="quiz-section">
+        <h3>Quick Check</h3>
+        <div class="quiz-question">When entering a time entry for a Mass Tort case, what format should the Matter name follow?</div>
+        <div class="quiz-options" id="opts">
+          <div class="quiz-option" onclick="answer(false,this)"><span>◯</span> Just the client's last name</div>
+          <div class="quiz-option" onclick="answer(true,this)"><span>◯</span> The case name followed by 'SLS Ops' (e.g., 'Dexcom SLS Ops')</div>
+          <div class="quiz-option" onclick="answer(false,this)"><span>◯</span> The docket number only</div>
+          <div class="quiz-option" onclick="answer(false,this)"><span>◯</span> Any unique identifier for the case</div>
+        </div>
+        <div class="quiz-feedback" id="quizFb"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'numeric' });
+  const startH = now.getHours(), startM = now.getMinutes();
+  const startAmPm = startH >= 12 ? 'pm' : 'am';
+  const startH12 = startH % 12 || 12;
+  const startTimeStr = `${startH12}:${String(startM).padStart(2,'0')}${startAmPm}`;
+
+  // ── Stage 0: Click Add Time ────────────────────────────────────
+  function clickAddTime() {
+    document.getElementById('stage-dashboard').style.display = 'none';
+    document.getElementById('stage-form').style.display = 'block';
+    document.getElementById('f-datecreated').textContent = dateStr;
+    document.getElementById('f-dateofwork').textContent = dateStr;
+    document.getElementById('f-starttime').textContent = startTimeStr;
+  }
+
+  // ── Get Time button ────────────────────────────────────────────
+  function clickGetTime() {
+    const endNow = new Date();
+    const eH = endNow.getHours(), eM = endNow.getMinutes();
+    const eAmPm = eH >= 12 ? 'pm' : 'am';
+    const eH12 = eH % 12 || 12;
+    const endTimeStr = `${eH12}:${String(eM).padStart(2,'0')}${eAmPm}`;
+    // Calculate duration, round up to nearest 0.1hr (6 min)
+    const startMins = startH * 60 + startM;
+    const endMins = eH * 60 + eM;
+    let diffMins = endMins - startMins;
+    if (diffMins <= 0) diffMins = 6; // fallback minimum
+    const hrs = Math.ceil(diffMins / 6) * 0.1;
+    document.getElementById('f-endtime').textContent = endTimeStr;
+    document.getElementById('f-endtime').style.color = 'var(--blue-accent)';
+    document.getElementById('f-endtime').style.fontStyle = 'normal';
+    document.getElementById('f-labortime').textContent = hrs.toFixed(2) + ' hrs';
+    document.getElementById('f-billablehrs').textContent = hrs.toFixed(2);
+    document.getElementById('getTimeBtn').disabled = true;
+    document.getElementById('hint-endtime').className = 'field-hint ok';
+    document.getElementById('hint-endtime').textContent = `✓ End time stamped — ${hrs.toFixed(2)} hrs (rounded up to nearest increment)`;
+    fieldState.endtime = true;
+    const row = document.getElementById('fp-endtime');
+    if (row) { row.classList.add('done'); row.querySelector('.fp-icon').textContent = '✓'; }
+    checkSaveReady();
+  }
+
+  // ── Quiz ───────────────────────────────────────────────────────
+  let quizDone = false;
+  function answer(correct, el) {
+    if (quizDone) return; quizDone = true;
+    document.getElementById('opts').querySelectorAll('.quiz-option').forEach(o => { o.classList.add('disabled'); o.style.pointerEvents='none'; });
+    el.classList.add(correct ? 'correct' : 'wrong');
+    el.querySelector('span').textContent = correct ? '✓' : '✗';
+    const fb = document.getElementById('quizFb');
+    fb.classList.add('show', correct ? 'correct' : 'wrong');
+    fb.textContent = correct
+      ? '✓ Correct! Always use the format "[Case Name] SLS Ops" — for example, "Dexcom SLS Ops" for Mass Tort cases.'
+      : '✗ Not quite. The Matter must follow the "SLS Ops" format — for example, "Dexcom SLS Ops".';
+  }
+
+  // ── Coach ──────────────────────────────────────────────────────
+  const coachData = {
+    client:      { label: 'Client field',                  tip: 'Always select <strong>SLS Operations</strong> as the client — this applies to every SLS time entry. Type "SLS" to filter.' },
+    matter:      { label: 'Matter field', tip: 'You must <strong>manually type</strong> the case name — it will not auto-populate. Type the case name followed by <strong>"SLS Ops"</strong>.<br><br><strong>Format:</strong> [Case Name] SLS Ops<br><strong>Examples:</strong><br>• Dexcom SLS Ops<br>• Paragard SLS Ops<br>• CPAP SLS Ops<br>• Talc SLS Ops<br><br>If you\'re unsure of the exact case name, check with your supervisor.' },
+    entrytype:   { label: 'Entry Type field', tip: 'Leave as <strong>Hourly Work</strong>. The Billable checkbox should remain checked.' },
+    description: { label: 'Private Description', tip: 'Describe the <strong>specific task</strong> you completed and <strong>include all client matter numbers and display names</strong> worked on.<br><br><strong>Good examples:</strong><br>• "Reviewed and uploaded 12 medical records for client intake — Matter #12345 John Smith"<br>• "Called client to confirm surgery dates, updated case file — Matter #67890 Jane Doe"<br>• "Completed and submitted plaintiff fact sheet — Matter #11223 Robert Johnson"<br><br><strong>Too vague — do not use:</strong><br>• "Worked on case" ✗<br>• "SLS tasks" ✗<br>• "Reviewed documents" ✗' },
+    endtime:     { label: 'Get Time', tip: 'When you have <strong>fully completed your task</strong>, click the <strong>Get Time</strong> button next to the End Time field. This stamps your end time and auto-calculates your billable hours.<br><br>Note: Bill4Time always rounds up to the nearest increment. A quick task may round to 0.10 — this is expected and acceptable.<br><br><strong>Do not click Get Time until your task is fully complete.</strong>' }
+  };
+  const fieldState = { client:false, matter:false, entrytype:false, description:false, endtime:false };
+
+  function setCoach(key) {
+    const d = coachData[key]; if (!d) return;
+    document.getElementById('coachLabel').textContent = d.label;
+    document.getElementById('coachTip').innerHTML = d.tip;
+    Object.keys(fieldState).forEach(k => {
+      const row = document.getElementById('fp-'+k); if (!row) return;
+      row.classList.remove('done','active');
+      if (fieldState[k]) { row.classList.add('done'); row.querySelector('.fp-icon').textContent = '✓'; }
+      else if (k === key) { row.classList.add('active'); row.querySelector('.fp-icon').textContent = '→'; }
+      else row.querySelector('.fp-icon').textContent = '○';
+    });
+  }
+  function onFocus(key) { setCoach(key); }
+
+  // ── Field data ─────────────────────────────────────────────────
+  const clientOptions = ['SLS Operations','Morgan & Morgan','General Fund'];
+  const matterOptions = [
+    { label:'Dexcom SLS Ops', sub:'Mass Tort · SLS Operations' },
+    { label:'Exactech SLS Ops', sub:'Mass Tort · SLS Operations' },
+    { label:'Paragard SLS Ops', sub:'Mass Tort · SLS Operations' },
+    { label:'CPAP SLS Ops', sub:'Mass Tort · SLS Operations' },
+    { label:'Talc SLS Ops', sub:'Mass Tort · SLS Operations' },
+  ];
+  // ── Client ─────────────────────────────────────────────────────
+  function onClientInput() {
+    const v = document.getElementById('f-client').value.trim(), dd = document.getElementById('dd-client');
+    if (!v) { dd.classList.remove('open'); dd.innerHTML=''; return; }
+    const f = clientOptions.filter(o => o.toLowerCase().includes(v.toLowerCase()));
+    dd.innerHTML = f.length ? f.map(o=>`<div class="sim-dropdown-item" onmousedown="selectClient('${o}')"><div class="item-label">${o}</div></div>`).join('') : '<div class="sim-dropdown-empty">No matches</div>';
+    dd.classList.add('open'); validateClient(false);
+  }
+  function selectClient(val) { document.getElementById('f-client').value=val; document.getElementById('dd-client').classList.remove('open'); validateClient(true); }
+  function validateClient(commit) {
+    const el=document.getElementById('f-client'), v=el.value.trim(), hint=document.getElementById('hint-client');
+    if (v==='SLS Operations') { el.className='sim-input field-correct'; hint.className='field-hint ok'; hint.textContent='✓ Correct — SLS Operations selected'; fieldState.client=true; }
+    else if (commit&&v) { el.className='sim-input field-wrong'; hint.className='field-hint err'; hint.textContent='✗ Select "SLS Operations"'; fieldState.client=false; }
+    else { hint.className='field-hint tip'; hint.textContent='Type "SLS" and select SLS Operations'; }
+    checkSaveReady();
+  }
+  function onClientBlur() { setTimeout(()=>{ document.getElementById('dd-client').classList.remove('open'); validateClient(true); },150); }
+
+  // ── Matter ─────────────────────────────────────────────────────
+  function onMatterInput() {
+    const v=document.getElementById('f-matter').value.trim(), dd=document.getElementById('dd-matter');
+    if (!v) { dd.classList.remove('open'); dd.innerHTML=''; return; }
+    const f=matterOptions.filter(o=>o.label.toLowerCase().includes(v.toLowerCase()));
+    dd.innerHTML=f.length ? f.map(o=>`<div class="sim-dropdown-item" onmousedown="selectMatter('${o.label}')"><div class="item-label">${o.label}</div><div class="item-sub">${o.sub}</div></div>`).join('') : '<div class="sim-dropdown-empty">No matches — try a case name</div>';
+    dd.classList.add('open'); validateMatter(false);
+  }
+  function selectMatter(val) { document.getElementById('f-matter').value=val; document.getElementById('dd-matter').classList.remove('open'); validateMatter(true); }
+  function validateMatter(commit) {
+    const el=document.getElementById('f-matter'), v=el.value.trim(), hint=document.getElementById('hint-matter');
+    const valid=matterOptions.some(o=>o.label===v);
+    if (valid) { el.className='sim-input field-correct'; hint.className='field-hint ok'; hint.textContent='✓ Matter selected'; fieldState.matter=true; }
+    else if (commit&&v) { el.className='sim-input field-wrong'; hint.className='field-hint err'; hint.textContent='✗ Select a matter from the list (e.g. Dexcom SLS Ops)'; fieldState.matter=false; }
+    else { hint.className='field-hint tip'; hint.textContent='Type the case name followed by SLS Ops — e.g. Dexcom SLS Ops'; }
+    checkSaveReady();
+  }
+  function onMatterBlur() { setTimeout(()=>{ document.getElementById('dd-matter').classList.remove('open'); validateMatter(true); },150); }
+
+  // ── Entry Type ─────────────────────────────────────────────────
+  function onEntryTypeChange() {
+    const el=document.getElementById('f-entrytype'), v=el.value, hint=document.getElementById('hint-entrytype');
+    if (v==='hourly') { el.classList.add('field-correct'); hint.className='field-hint ok'; hint.textContent='✓ Hourly Work — correct'; fieldState.entrytype=true; }
+    else if (!v) { el.classList.remove('field-correct'); hint.className='field-hint tip'; hint.textContent='Select Hourly Work'; fieldState.entrytype=false; }
+    else { el.classList.remove('field-correct'); hint.className='field-hint err'; hint.textContent='✗ SLS entries should use Hourly Work'; fieldState.entrytype=false; }
+    checkSaveReady();
+  }
+
+  // ── Description ────────────────────────────────────────────────
+  function onDescriptionBlur() {
+    const v=document.getElementById('f-description').value.trim(), hint=document.getElementById('hint-description');
+    fieldState.description=v.length>0;
+    hint.className=fieldState.description?'field-hint ok':'field-hint err';
+    hint.textContent=fieldState.description?'✓ Description added':'✗ Required — describe the task you worked on';
+    const row=document.getElementById('fp-description');
+    if (fieldState.description) { row.classList.add('done'); row.querySelector('.fp-icon').textContent='✓'; }
+    else { row.classList.remove('done'); row.querySelector('.fp-icon').textContent='○'; }
+    checkSaveReady();
+  }
+
+  // ── Save & reset ───────────────────────────────────────────────
+  function checkSaveReady() {
+    const ready=['client','matter','entrytype','description','endtime'].every(k=>fieldState[k]);
+    document.getElementById('saveBtn').disabled=!ready;
+    Object.keys(fieldState).forEach(k=>{ const row=document.getElementById('fp-'+k); if(row&&fieldState[k]){row.classList.add('done');row.querySelector('.fp-icon').textContent='✓';} });
+  }
+
+  function trySave() {
+    if (!['client','matter','entrytype','description','endtime'].every(k=>fieldState[k])) return;
+    document.getElementById('simForm').style.display='none';
+    document.getElementById('simSuccess').classList.add('show');
+    document.getElementById('ss-matter').textContent=document.getElementById('f-matter').value;
+  }
+
+  function resetAll() {
+    // Reset to stage 0
+    document.getElementById('stage-form').style.display='none';
+    document.getElementById('stage-dashboard').style.display='block';
+    // Reset form fields
+    ['f-client','f-matter'].forEach(id=>{ const el=document.getElementById(id); el.value=''; el.className='sim-input'; });
+    document.getElementById('f-entrytype').value=''; document.getElementById('f-entrytype').className='sim-select';
+    document.getElementById('f-description').value='';
+    Object.keys(fieldState).forEach(k=>{ fieldState[k]=false; const h=document.getElementById('hint-'+k); if(h) h.textContent=''; const row=document.getElementById('fp-'+k); if(row){row.classList.remove('done','active');row.querySelector('.fp-icon').textContent='○';} });
+    document.getElementById('f-endtime').textContent = '—';
+    document.getElementById('f-endtime').style.color = 'var(--text-light)';
+    document.getElementById('f-endtime').style.fontStyle = 'italic';
+    document.getElementById('f-labortime').textContent = '—';
+    document.getElementById('f-billablehrs').textContent = '0.00';
+    document.getElementById('getTimeBtn').disabled = false;
+    document.getElementById('simSuccess').classList.remove('show');
+    document.getElementById('simForm').style.display='';
+    document.getElementById('coachLabel').textContent='Get started';
+    document.getElementById('coachTip').textContent='Click any field in the form to begin. The guidance here will update as you go.';
+  }
+</script>
+</body>
+</html>
